@@ -130,6 +130,8 @@ def main():
             ips = [decision["value"] for decision in decisions]
             # Clean the list (remove duplicates and sort it)
             ips = list(set(ips))
+            # remove ipv6 addresses
+            ips = [ip for ip in ips if ":" not in ip]
             # Make the IP to be in CIDR format (if not already)
             ips = [ip + "/32" if "/" not in ip else ip for ip in ips]
             # Update the NetworkPolicy
