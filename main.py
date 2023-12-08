@@ -95,11 +95,11 @@ def update_netpol(ips):
         log.debug(netpol.spec.ingress)
         log.debug(netpol.spec.ingress[0])
         # Get the existing IPBlock
-        ip_block = netpol.spec.ingress[0].get("from", [])[0].get("ipBlock", {})
+        ip_block = netpol.spec.ingress[0]._from[0].ip_block._except
         # Update the IPBlock
-        ip_block.cidr = ",".join(ips)
+        ip_block = ips
         # Update the NetworkPolicy
-        netpol.spec.ingress[0].from_ip_blocks[0] = ip_block
+        netpol.spec.ingress[0]._from[0].ip_block._except = ip_block
         # Update the NetworkPolicy
         log.debug(
             "Updating NetworkPolicy %s in namespace %s",
