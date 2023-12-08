@@ -31,8 +31,8 @@ CERTIFICATES_PATH = os.environ.get("CERTIFICATES_PATH", "/etc/ssl/crowdsec-bounc
 # Check that all required environment variables have been set
 if not CROWDSEC_API_KEY:
     raise ValueError("CROWDSEC_API_KEY environment variable is required")
-if not CROWDSEC_API_URL:
-    raise ValueError("CROWDSEC_API_URL environment variable is required")
+if not CROWDSEC_API_ADDRESS:
+    raise ValueError("CROWDSEC_API_ADDRESS environment variable is required")
 if not NETPOL_NAME:
     raise ValueError("NETPOL_NAME environment variable is required")
 if not NETPOL_NAMESPACE:
