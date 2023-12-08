@@ -80,26 +80,20 @@ def get_decisions():
         return None
 
 
-def get_netpol():
-    """
-    Get the NetworkPolicy from the Kubernetes API
-    """
-    try:
-        return networking_v1.read_namespaced_network_policy(
-            NETPOL_NAME, NETPOL_NAMESPACE
-        )
-    except ApiException as err:
-        log.exception(err)
-        return None
-
-
-def update_netpol(netpol, ips):
+def update_netpol(ips):
     """
     Update the NetworkPolicy to match the list of IPs
     """
     try:
+        netpol = networking_v1.read_namespaced_network_policy(
+            NETPOL_NAME, NETPOL_NAMESPACE
+        )
+        log.debug(netpol)
+        log.debug(netpol.spec)
+        log.debug(netpol.spec.ingress)
+        log.debug(netpol.spec.ingress[0])
         # Get the existing IPBlock
-        ip_block = netpol.spec.ingress[0].from_ip_blocks[0]
+        ip_block = netpol.spec.ingress[0].get("from", [])[0].get("ipBlock", {})
         # Update the IPBlock
         ip_block.cidr = ",".join(ips)
         # Update the NetworkPolicy
@@ -129,12 +123,10 @@ def main():
         decisions = get_decisions()
         if decisions:
             # Get the NetworkPolicy from the Kubernetes API
-            netpol = get_netpol()
-            if netpol:
-                # Get the list of IPs from the decisions
-                ips = [decision["value"] for decision in decisions]
-                # Update the NetworkPolicy
-                update_netpol(netpol, ips)
+            # Get the list of IPs from the decisions
+            ips = [decision["value"] for decision in decisions]
+            # Update the NetworkPolicy
+            update_netpol(ips)
         # Wait for the next check interval
         log.debug("Waiting %s seconds before next check", CHECK_INTERVAL)
         time.sleep(CHECK_INTERVAL)
