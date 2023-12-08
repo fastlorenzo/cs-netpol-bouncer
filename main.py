@@ -20,10 +20,13 @@ networking_v1 = client.NetworkingV1Api()
 
 # Load the configurations from Environment Variables
 CROWDSEC_API_KEY = os.environ.get("CROWDSEC_API_KEY")
-CROWDSEC_API_URL = os.environ.get("CROWDSEC_API_URL")
+CROWDSEC_API_ADDRESS = os.environ.get("CROWDSEC_API_ADDRESS")
 CHECK_INTERVAL = int(os.environ.get("CHECK_INTERVAL", 60))
 NETPOL_NAME = os.environ.get("NETPOL_NAME")
 NETPOL_NAMESPACE = os.environ.get("NETPOL_NAMESPACE")
+
+USE_TLS = os.environ.get("USE_TLS", "false").lower() in ["true", "1", "t"]
+CERTIFICATES_PATH = os.environ.get("CERTIFICATES_PATH", "/etc/ssl/crowdsec-bouncer/")
 
 # Check that all required environment variables have been set
 if not CROWDSEC_API_KEY:
@@ -35,6 +38,12 @@ if not NETPOL_NAME:
 if not NETPOL_NAMESPACE:
     raise ValueError("NETPOL_NAMESPACE environment variable is required")
 
+if USE_TLS and not os.path.exists(CERTIFICATES_PATH):
+    # path not found error
+    raise FileNotFoundError(f"CERTIFICATES_PATH {CERTIFICATES_PATH} does not exist")
+
+SCHEME = "https" if USE_TLS else "http"
+
 # Create logger
 log = logging.getLogger("cs-netpol-bouncer")
 
@@ -44,12 +53,26 @@ def get_decisions():
     Get the decisions from the CrowdSec API
     """
     try:
-        response = requests.get(
-            CROWDSEC_API_URL + "/v1/decisions",
-            headers={"Authorization": "Bearer " + CROWDSEC_API_KEY},
-            params={"type": "ban"},
-            timeout=5,
-        )
+        # use client certificates if tls is enabled (tls.crt, tls.key and ca.crt)
+        if USE_TLS:
+            response = requests.get(
+                f"{SCHEME}://{CROWDSEC_API_ADDRESS}/v1/decisions",
+                headers={"Authorization": "Bearer " + CROWDSEC_API_KEY},
+                params={"type": "ban"},
+                timeout=5,
+                cert=(
+                    os.path.join(CERTIFICATES_PATH, "tls.crt"),
+                    os.path.join(CERTIFICATES_PATH, "tls.key"),
+                ),
+                verify=os.path.join(CERTIFICATES_PATH, "ca.crt"),
+            )
+        else:
+            response = requests.get(
+                f"{SCHEME}://{CROWDSEC_API_ADDRESS}/v1/decisions",
+                headers={"Authorization": "Bearer " + CROWDSEC_API_KEY},
+                params={"type": "ban"},
+                timeout=5,
+            )
         response.raise_for_status()
         return response.json()
     except requests.exceptions.HTTPError as err:
