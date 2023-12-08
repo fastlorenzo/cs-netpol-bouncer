@@ -45,7 +45,8 @@ if USE_TLS and not os.path.exists(CERTIFICATES_PATH):
 SCHEME = "https" if USE_TLS else "http"
 
 # Create logger
-log = logging.getLogger("cs-netpol-bouncer").setLevel(logging.DEBUG)
+log = logging.getLogger("cs-netpol-bouncer")
+log.setLevel(logging.DEBUG)
 
 
 def get_decisions():
