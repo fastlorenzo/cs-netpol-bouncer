@@ -126,7 +126,12 @@ def main():
         if decisions:
             # Get the NetworkPolicy from the Kubernetes API
             # Get the list of IPs from the decisions
+            log.debug("Decisions: %s", decisions)
             ips = [decision["value"] for decision in decisions]
+            # Clean the list (remove duplicates and sort it)
+            ips = list(set(ips))
+            # Make the IP to be in CIDR format (if not already)
+            ips = [ip + "/32" if "/" not in ip else ip for ip in ips]
             # Update the NetworkPolicy
             update_netpol(ips)
         # Wait for the next check interval
