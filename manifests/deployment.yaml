@@ -1,0 +1,119 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cs-netpol-bouncer
+  namespace: security
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: crowdsec
+      app.kubernetes.io/component: cs-netpol-bouncer
+  strategy:
+    rollingUpdate:
+      maxSurge: 25%
+      maxUnavailable: 25%
+    type: RollingUpdate
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: crowdsec
+        app.kubernetes.io/component: cs-netpol-bouncer
+    spec:
+      containers:
+        - name: cs-netpol-bouncer
+          image: ghcr.io/fastlorenzo/cs-netpol-bouncer:latest
+          imagePullPolicy: Always
+          env:
+            # CROWDSEC_API_KEY, CROWDSEC_API_URL, CHECK_INTERVAL, NETPOL_NAME, NETPOL_NAMESPACE
+            - name: CROWDSEC_API_KEY
+              value: "aSeBF3EvV8181ZSVle/r+Q"
+            - name: CROWDSEC_API_ADDRESS
+              value: crowdsec-service.security:8080
+            - name: CHECK_INTERVAL
+              value: "60"
+            - name: NETPOL_NAME
+              value: crowdsec
+            - name: NETPOL_NAMESPACE
+              value: security
+            - name: USE_TLS
+              value: "true"
+            - name: DEBUG
+              value: "true"
+            - name: CERTIFICATES_PATH
+              value: /etc/ssl/crowdsec-bouncer
+          volumeMounts:
+            - mountPath: /etc/ssl/crowdsec-bouncer
+              name: crowdsec-bouncer-tls
+          resources:
+            limits:
+              cpu: 150m
+              memory: 100Mi
+            requests:
+              cpu: 150m
+              memory: 100Mi
+      restartPolicy: Always
+      serviceAccountName: crowdsec
+      volumes:
+        - name: crowdsec-bouncer-tls
+          secret:
+            defaultMode: 420
+            secretName: crowdsec-bouncer-tls
+---
+# Service Account to allow the service account to read and write network policies
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: crowdsec
+  namespace: security
+---
+# Cluster Role to allow the service account to read and write network policies
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: crowdsec-netpol-bouncer
+rules:
+  - apiGroups:
+      - networking.k8s.io
+    resources:
+      - networkpolicies
+    verbs:
+      - get
+      - list
+      - watch
+      - create
+      - update
+      - patch
+      - delete
+---
+# Cluster Role Binding to allow the service account to read and write network policies
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: crowdsec-netpol-bouncer
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: crowdsec-netpol-bouncer
+subjects:
+  - kind: ServiceAccount
+    name: crowdsec
+    namespace: security
+---
+# Basic network policy to block specific ingress traffic from a specific source IP address
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: crowdsec
+  namespace: security
+spec:
+  podSelector: {}
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - ipBlock:
+            cidr: 0.0.0.0/0
+            except:
+              - 192.0.0.2/32
